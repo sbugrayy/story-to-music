@@ -1,0 +1,13 @@
+.env
+data/raw/
+data/cleaned/*
+!data/cleaned/.gitkeep
+data/training/*
+!data/training/.gitkeep
+model/story-to-music-t5/*
+!model/story-to-music-t5/.gitkeep
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
