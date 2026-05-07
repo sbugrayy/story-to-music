@@ -1,3 +1,4 @@
+# --- Proje Özel ---
 .env
 data/raw/
 data/cleaned/*
@@ -6,8 +7,54 @@ data/training/*
 !data/training/.gitkeep
 model/story-to-music-t5/*
 !model/story-to-music-t5/.gitkeep
+
+# --- Python ---
 __pycache__/
-*.pyc
-*.pyo
-.venv/
+*.py[codz]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+MANIFEST
+build/
+dist/
+.eggs/
+wheels/
+
+# --- Ortam ---
+.env
+.envrc
+.venv
 venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.pixi
+
+# --- Test / Coverage ---
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+htmlcov/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# --- IDE ---
+.idea/
+.vscode/
+.spyderproject
+.ropeproject
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+.abstra/
+tempCodeRunnerFile.py
+
+# --- Diğer ---
+*.log
+.ipynb_checkpoints
