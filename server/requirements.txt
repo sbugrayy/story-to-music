@@ -1,0 +1,5 @@
+mcp>=1.0.0
+torch>=2.1.0
+transformers>=4.46.0
+sentencepiece>=0.2.0
+protobuf>=4.25.0

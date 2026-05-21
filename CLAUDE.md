@@ -101,7 +101,7 @@ platformun anlayacağı optimize prompt üretilir.
 | Katman | Teknoloji | Sebep |
 |---|---|---|
 | MCP Sunucu | Python + `mcp` SDK (resmi) | Standart protokol uyumu |
-| NLP Modeli | `google/flan-t5-small` (fine-tuned) | Seq2seq, hafif, CPU'da çalışır |
+| NLP Modeli | `google/mt5-small` (fine-tuned, ×2) | Seq2seq, çok dilli, Türkçe desteği zorunlu |
 | Groq Entegrasyonu | `groq` Python SDK, Llama 3.1 | Prompt refinement, sıfır maliyet |
 | Veri Toplama | `lyricsgenius` + Genius API | Türkçe şarkı sözü kaynağı |
 | Veri Temizleme | `langdetect`, `re`, custom pipeline | Kalite kontrolü |
@@ -324,7 +324,7 @@ Veri distillation aşamasında cleaning pipeline aşağıdakileri de filtreler:
 
 ## Model Eğitimi
 
-**Taban Model:** `google/flan-t5-small` (~300 MB)
+**Taban Model:** `google/mt5-small` (~2.1 GB, 556M parametre)
 
 **Görev formatı (T5 seq2seq):**
 ```
@@ -336,9 +336,9 @@ OUTPUT: "[JSON çıktısı]"
 
 **Checkpoint:** Her epoch'ta `trainer.save_checkpoint()` — Colab kesintilerini önler
 
-**Hedef Model Boyutu:** Quantization sonrası ~80-120 MB `.safetensors`
+**Hedef Model Boyutu:** ~2.1 GB per model (fp32). Quantization ile ~1.1 GB (int8) — iki model toplam ~2.2 GB.
 
-**Performans Hedefi:** CPU'da 1-5 saniye (milisaniye değil — gerçekçi hedef)
+**Performans Hedefi:** CPU'da 10-30 saniye (mt5-small flan-t5-small'dan ~4× yavaş)
 
 ---
 
@@ -389,7 +389,7 @@ docker run --rm -i story-to-music-mcp:latest
 ### Dockerfile Stratejisi
 - Base image: `python:3.11-slim` (alpine değil — PyTorch uyumluluğu için)
 - Model ağırlıkları imaja gömülür (kullanıcı internete bağımlı olmaz)
-- Hedef imaj boyutu: **< 1.5 GB** (quantization + slim dependencies)
+- Hedef imaj boyutu: **~5-6 GB** (iki mt5-small model ~2.2 GB + PyTorch base ~1.5 GB + bağımlılıklar)
 - `--rm` flag: Konteyner işlem bitince kendini siler
 
 ### Docker Hub
@@ -415,15 +415,21 @@ story-to-music/
 ├── scripts/
 │   ├── collect_lyrics.py        # Genius API scraper (sanatçı listesi dahil)
 │   ├── clean_lyrics.py          # Filtering, normalizasyon, güvenlik tarama
-│   └── distill_data.py          # Groq ile sentetik veri üretimi
+│   ├── distill_data.py          # Ollama (qwen2.5:7b) ile sentetik veri üretimi
+│   └── split_dataset.py         # dataset.jsonl → metadata + lyrics olarak böler
 │
 ├── training/
-│   ├── train.py                 # T5 fine-tuning scripti
-│   ├── evaluate.py              # Model değerlendirme
-│   └── requirements_train.txt   # Eğitim bağımlılıkları
+│   ├── train.py                         # (eski) tek model scripti
+│   ├── evaluate.py                      # Model değerlendirme
+│   ├── story_to_music_train.ipynb       # Model 1 — Analizci (mt5-small, Kaggle)
+│   ├── story_to_music_lyrics_train.ipynb # Model 2 — Söz Yazarı (mt5-small, Kaggle)
+│   └── requirements_train.txt           # Eğitim bağımlılıkları
 │
 ├── model/
-│   └── story-to-music-t5/       # Fine-tuned model ağırlıkları
+│   ├── story-to-music-analyzer/        # Model 1 ağırlıkları (Kaggle'dan indirilecek)
+│   │   ├── model.safetensors
+│   │   └── config.json
+│   └── story-to-music-lyricist/        # Model 2 ağırlıkları (Kaggle'dan indirilecek)
 │       ├── model.safetensors
 │       └── config.json
 │
@@ -446,21 +452,33 @@ story-to-music/
 ## Geliştirme Sırası
 
 1. **[x] Proje planı ve CLAUDE.md** — Tamamlandı
-2. **[ ] Genius API setup + `collect_lyrics.py`** — Sanatçı listesi + toplu çekim (max 20-30 şarkı/sanatçı)
-3. **[ ] `clean_lyrics.py`** — Filtering, normalizasyon + güvenlik tarama pipeline'ı
-4. **[ ] `distill_data.py`** — Groq ile JSONL dataset üretimi
-5. **[ ] `train.py`** — T5 fine-tuning (Colab/Kaggle)
-6. **[ ] `content_guard.py`** — İçerik moderasyon modülü
-7. **[ ] `copyright_guard.py`** — N-gram benzerlik kontrol modülü
-8. **[ ] `server/main.py`** — MCP sunucu + tool tanımları
-9. **[ ] `groq_client.py`** — Prompt-only mod entegrasyonu + injection savunması
-10. **[ ] Dockerfile** — Konteynerizasyon ve boyut optimizasyonu (ham veri dahil edilmez)
-11. **[ ] Docker Hub push + test**
-12. **[ ] README + kurulum kılavuzu**
+2. **[x] `collect_lyrics.py`** — 854 şarkı sözü toplandı (Genius API)
+3. **[x] `clean_lyrics.py`** — 855 temiz kayıt
+4. **[x] `distill_data.py`** — Ollama (qwen2.5:7b) ile 854 JSONL kaydı üretildi (`data/training/dataset.jsonl`)
+5. **[x] `split_dataset.py`** — Dataset metadata + lyrics olarak ikiye bölündü
+6. **[ ] Model 1 (Analizci) eğitimi** — `story_to_music_train.ipynb` (mt5-small, Kaggle T4) — henüz çalıştırılmadı
+7. **[ ] Model 2 (Söz Yazarı) eğitimi** — `story_to_music_lyrics_train.ipynb` — eğitim tamamlandı ama çıktı sorunlu (MAX_TARGET_LEN fix bekleniyor)
+8. **[ ] `content_guard.py`** — İçerik moderasyon modülü
+9. **[ ] `copyright_guard.py`** — N-gram benzerlik kontrol modülü
+10. **[ ] `server/main.py`** — MCP sunucu + tool tanımları
+11. **[ ] `groq_client.py`** — Prompt-only mod entegrasyonu + injection savunması
+12. **[ ] Dockerfile** — Konteynerizasyon (~5-6 GB imaj, ham veri dahil edilmez)
+13. **[ ] Docker Hub push + test**
+14. **[ ] README + kurulum kılavuzu**
 
 ---
 
 ## Önemli Kararlar ve Gerekçeler
+
+**Neden flan-t5-small değil mt5-small?**
+flan-t5-small Türkçe eğitim verisi görmemiş — inference'da çöp çıktı üretiyor.
+mt5-small 101 dil üzerinde pre-train edilmiş, Türkçe token'larını tanıyor.
+Bedeli: 556M parametre, ~2.1 GB model, CPU'da 10-30 saniye inference.
+
+**Neden tek model değil iki model (Analizci + Söz Yazarı)?**
+Tek modelin hem stil analizi hem şarkı sözü üretmesi çok farklı görevler — seq2seq
+modeli ikisini aynı anda öğrenmekte zorlanıyor. Analiz görevi (JSON çıktı, kısa) ile
+yaratıcı metin üretimi (uzun, yapısal) ayrı modellerde daha iyi sonuç veriyor.
 
 **Neden RoBERTa/DistilBERT değil T5?**
 RoBERTa ve DistilBERT encoder-only modellerdir; metin sınıflandırır, metin üretemez.
@@ -480,8 +498,9 @@ Groq prompt refinement için kullanılır — sadece "prompt_only" modda ve
 isteğe bağlı. Internet yoksa local model tek başına yeterli.
 
 **CPU performansı hakkında gerçekçi beklenti:**
-T5-small generation CPU'da **1-5 saniye** sürer. MCP aracı bağlamında
-bu kabul edilebilir bir süre. "Milisaniye" hedefi T5 ile mümkün değil.
+mt5-small generation CPU'da **10-30 saniye** sürer. flan-t5-small'dan ~4× yavaş çünkü
+556M parametre ve 250K token vocabulary. MCP aracı bağlamında kabul edilebilir ama
+kullanıcıya bekleme süresi gösterilmeli.
 
 ---
 
@@ -501,4 +520,4 @@ LOG_LEVEL=INFO
 - Şarkı sözleri tamamen **Türkçe** olacak, başka dil desteklenmiyor (v1)
 - Groq API ücretsiz katmanı: 14.400 req/gün, 30 req/dakika — dataset üretimi için yeterli
 - Eğitim sırasında her epoch'ta checkpoint kaydedilmeli (Colab kesintileri için)
-- Docker imaj boyutu hedefi: **< 1.5 GB** — aşılırsa model quantization artırılacak
+- Docker imaj boyutu hedefi: **~5-6 GB** — mt5-small iki model gerektiriyor, int8 quantization ile ~4 GB'a düşürülebilir

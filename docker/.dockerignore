@@ -1,0 +1,44 @@
+# Eğitim verisi (ham + temizlenmiş) → docker'a girmesin
+data/raw/
+data/cleaned/
+
+# Eğitim notebookları
+training/
+
+# Diğer scripts (sadece server runtime için inference lazım)
+scripts/
+
+# Yedek augment dosyaları — referans olarak sadece v2 yeterli
+data/training/dataset.jsonl
+data/training/dataset_metadata.jsonl
+data/training/dataset_lyrics.jsonl
+data/training/lyrics_augmented*.jsonl
+
+# Test artifacts
+data/story-to-music-lyricist/
+data/story-to-music-analyzer/
+
+# Logs
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Eski tek model klasörü (kullanılmıyor)
+model/story-to-music-t5/

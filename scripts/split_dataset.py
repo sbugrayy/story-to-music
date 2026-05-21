@@ -1,5 +1,7 @@
 """
-dataset.jsonl → dataset_metadata.jsonl + dataset_lyrics.jsonl
+dataset.jsonl → dataset_metadata.jsonl + dataset_lyrics.jsonl + dataset_lyrics_v2.jsonl
+
+dataset_lyrics_v2.jsonl: orijinal lyrics + lyrics_augmented.jsonl birleştirilmiş hâl
 
 Kullanım:
     python scripts/split_dataset.py
@@ -8,8 +10,9 @@ Kullanım:
 import json
 from pathlib import Path
 
-INPUT  = Path("data/training/dataset.jsonl")
-OUTDIR = Path("data/training")
+INPUT      = Path("data/training/dataset.jsonl")
+AUGMENTED  = Path("data/training/lyrics_augmented.jsonl")
+OUTDIR     = Path("data/training")
 
 
 def fmt_instruments(v):
@@ -74,8 +77,32 @@ def main():
         for r in lyrics_records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-    print(f"Analizci dataset : {len(meta_records):>4} kayit -> {meta_path}")
-    print(f"Soz yazari dataset: {len(lyrics_records):>4} kayit -> {lyrics_path}")
+    # ── Birleşik v2: orijinal lyrics + augmented ──────────────────────────────
+    v2_records = list(lyrics_records)
+    aug_count = 0
+    if AUGMENTED.exists():
+        with open(AUGMENTED, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                d = json.loads(line)
+                if "input_text" not in d or "target_text" not in d:
+                    continue
+                v2_records.append({
+                    "input_text":  d["input_text"],
+                    "target_text": d["target_text"],
+                })
+                aug_count += 1
+
+    v2_path = OUTDIR / "dataset_lyrics_v2.jsonl"
+    with open(v2_path, "w", encoding="utf-8") as f:
+        for r in v2_records:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+    print(f"Analizci dataset   : {len(meta_records):>4} kayit -> {meta_path}")
+    print(f"Soz yazari dataset : {len(lyrics_records):>4} kayit -> {lyrics_path}")
+    print(f"V2 (lyrics+aug)    : {len(v2_records):>4} kayit -> {v2_path}  (augmented: {aug_count})")
 
     # Örnek göster
     print("\n── Model 1 örnek target ──")

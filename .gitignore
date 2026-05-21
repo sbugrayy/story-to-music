@@ -7,6 +7,15 @@ data/training/*
 !data/training/.gitkeep
 model/story-to-music-t5/*
 !model/story-to-music-t5/.gitkeep
+# Fine-tuned model ağırlıkları — Kaggle'dan indirilecek, repo'ya commit etme (~4GB)
+model/story-to-music-analyzer/
+model/story-to-music-lyricist/
+
+# Claude Code workspace
+.claude/
+
+# Log dosyaları (zaten *.log var ama logs/ klasörü için)
+logs/
 
 # --- Python ---
 __pycache__/
