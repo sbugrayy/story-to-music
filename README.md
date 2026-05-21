@@ -1,116 +1,285 @@
-# Story-to-Music MCP Sunucusu
+# Story-to-Music
 
-Türkçe metinlerin (hikaye, senaryo, konsept veya şarkı sözü) duygu haritasını analiz ederek **Suno** ve **Udio** gibi yapay zeka müzik platformları için kullanıma hazır, yapılandırılmış müzik promptları ve Türkçe şarkı sözleri üreten **Model Context Protocol (MCP)** tabanlı otonom bir yapay zeka aracı.
+> Türkçe metinleri **Suno** ve **Udio** için hazır müzik promptlarına ve yapılandırılmış şarkı sözlerine çeviren, kendi fine-tuned modelleriyle çalışan **MCP (Model Context Protocol)** sunucusu.
 
----
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker)](https://hub.docker.com/r/sbugrayy/story-to-music-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Model](https://img.shields.io/badge/model-mT5--small-orange)](https://huggingface.co/google/mt5-small)
 
-## Nasıl Çalışır?
-
-```
-Türkçe Metin → Fine-Tuned T5-small Model → Müzik Parametreleri + Yapılandırılmış Şarkı Sözü
-```
-
-### Mod 1 — Custom (Tam Çıktı)
-Suno/Udio'da "Custom" sekmesi açıkken kullanılır. Şunları üretir:
-- **Style prompt** → `melancholic Turkish arabesque, 75 BPM, A minor, slow strings, ney flute, male vocal`
-- **Yapılandırılmış şarkı sözü** → `[Verse]`, `[Chorus]`, `[Bridge]`, `[Outro]` etiketleriyle Türkçe sözler
-- **Başlık önerileri** → 2-3 alternatif başlık
-
-### Mod 2 — Prompt Only (Hızlı Prompt)
-Tek satırlık, platforma optimize edilmiş prompt üretir:
-> `sad Turkish pop ballad with ney flute and piano, melancholic female vocals, 70 BPM`
+Bir hikâye, konsept veya taslak veriyorsunuz — sistem duygu haritasını analiz ediyor, müzik parametrelerini çıkarıyor ve **[Verse]/[Chorus]/[Bridge]/[Outro]** etiketli Türkçe şarkı sözleri üretiyor. Hepsi local'de, harici API olmadan, tek `docker run` ile.
 
 ---
 
-## Kurulum (Docker — Önerilen)
+## Örnek Çıktı
 
-```bash
-docker run --rm -i story-to-music-mcp:latest
+**Girdi:**
+> Bir zamanlar büyük bir aşk yaşamıştım. Sonra o aşk gitti, geride sadece anılar kaldı. Her gece pencereden dışarı bakıyorum, yağmurun sesi hatırlatıyor onu bana.
+
+**Çıktı:**
+```json
+{
+  "style_prompt": "Turkish yearning song, moderate tempo, ney flute, saz, 80 BPM, A minor, raspy, dramatic vocal",
+  "structured_lyrics": "[Verse 1]\nGecenin parıltısı, yağmur dolu yüze\nGökyüzünde kafama bakıyor\nİnsanın ötesinde bir çocuk gibi\n\n[Chorus]\nGüneşin içinde kalan benim parçam\n\n[Bridge]\nRüzgarın içindeki yıldızlar\nYağmur suları dumanla oynarken\n...",
+  "title_suggestions": ["Uzaktan", "Hatıra", "Gecenin Parıltısı"],
+  "parameters": {
+    "emotion": "özlem",
+    "energy": 4,
+    "bpm": 80,
+    "key": "A minor",
+    "instruments": ["ney", "saz"],
+    "vocal_style": "erkek, kısık, dramatik"
+  }
+}
 ```
 
-Claude, Cursor veya başka bir MCP istemcisinin config dosyasına bu satırı ekleyin. Başka bir kurulum adımı yoktur.
+Bu çıktıyı doğrudan Suno/Udio'ya yapıştırıp şarkı üretebilirsiniz.
 
 ---
 
-## Geliştirici Kurulumu
+## Hızlı Başlangıç
 
-```bash
-git clone https://github.com/YOUR_USERNAME/story-to-music.git
-cd story-to-music
-cp .env.example .env
-# .env dosyasına API anahtarlarınızı ekleyin
+### Claude Desktop ile
+
+`%APPDATA%\Claude\claude_desktop_config.json` (Windows) veya `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) dosyasına ekleyin:
+
+```json
+{
+  "mcpServers": {
+    "story-to-music": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "sbugrayy/story-to-music-mcp:latest"]
+    }
+  }
+}
 ```
 
-### Ortam Değişkenleri
+Claude Desktop'u yeniden başlatın. Artık Claude'a "*bu hikâye için Suno prompt'u üret*" diyebilirsiniz.
 
-| Değişken | Açıklama | Zorunlu |
-|---|---|---|
-| `GENIUS_ACCESS_TOKEN` | Genius API token (veri toplama) | Hayır (sadece data pipeline) |
-| `GROQ_API_KEY` | Groq API key (prompt refinement) | Hayır (prompt_only modu için) |
-| `MODEL_PATH` | Fine-tuned model dizini | Evet |
+### Cursor ile
+
+`~/.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "story-to-music": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "sbugrayy/story-to-music-mcp:latest"]
+    }
+  }
+}
+```
+
+### İlk çalıştırma
+
+İlk istek sırasında Docker imajı (~6 GB) indirilir ve modeller yüklenir. Sonraki istekler hızlıdır.
 
 ---
 
-## Proje Yapısı
+## MCP Tool'ları
+
+### `generate_music_prompt`
+Türkçe metin → Suno/Udio için tam çıktı (style + sözler + başlıklar).
+
+**Parametreler:**
+| | Tip | Default | Açıklama |
+|---|---|---|---|
+| `text` | string | — | Analiz edilecek Türkçe metin (10-800 kelime) |
+| `mode` | string | `"custom"` | `"custom"` (tam çıktı) veya `"prompt_only"` (tek satır) |
+| `language` | string | `"tr"` | Sadece `"tr"` destekleniyor |
+
+### `analyze_emotion`
+Sadece duygu/stil analizi yapar, şarkı sözü üretmez. Hafif kullanım için.
+
+```json
+{
+  "emotion": "hüzün",
+  "energy": 5,
+  "bpm": 90,
+  "key": "A minor",
+  "instruments": ["ney", "keman", "ud"],
+  "vocal_style": "erkek, kısık, dramatik",
+  "suno_style_prompt": "..."
+}
+```
+
+### `generate_lyrics_only`
+Stil parametreleri verildiğinde sadece Türkçe şarkı sözü üretir. Metin analizi atlanır.
+
+```jsonc
+// Çağrı
+{
+  "emotion": "öfke", "energy": 9, "bpm": 140,
+  "key": "E minor", "instruments": ["elektro gitar", "davul"],
+  "vocal_style": "erkek, sert, isyankar"
+}
+```
+
+---
+
+## Mimari
 
 ```
-story-to-music/
-├── scripts/                # Veri toplama ve temizleme
-│   ├── collect_lyrics.py   # Genius API scraper
-│   ├── clean_lyrics.py     # Filtreleme ve normalizasyon
-│   └── distill_data.py     # Groq ile sentetik veri üretimi
-│
-├── training/               # Model eğitimi
-│   ├── train.py
-│   └── evaluate.py
-│
-├── server/                 # MCP sunucu
-│   ├── main.py
-│   ├── tools.py
-│   ├── inference.py
-│   ├── groq_client.py
-│   ├── content_guard.py
-│   └── copyright_guard.py
-│
-├── docker/
-│   └── Dockerfile
-│
-├── data/                   # Veri (git'e dahil edilmez)
-│   ├── raw/
-│   ├── cleaned/
-│   └── training/
-│
-└── model/                  # Model ağırlıkları (git'e dahil edilmez)
-    └── story-to-music-t5/
+┌─────────────────────────────────────────────────────────────┐
+│  Türkçe Metin                                                │
+│       │                                                      │
+│       ▼                                                      │
+│  Content Guard (input)  ──┐                                 │
+│       │                    │                                 │
+│       ▼                    ▼                                 │
+│  Model 1: Analyzer    [Politika ihlali → ret]              │
+│  (fine-tuned mT5)                                           │
+│       │                                                      │
+│       │ {emotion, energy, bpm, key, instruments, ...}      │
+│       ▼                                                      │
+│  Model 2: Lyricist                                          │
+│  (fine-tuned mT5)                                           │
+│       │                                                      │
+│       │ [Verse]/[Chorus]/[Bridge]/[Outro] Türkçe sözler    │
+│       ▼                                                      │
+│  Copyright Guard ──► Jaccard > 0.35 ise tekrar dene (max 3) │
+│       │                                                      │
+│       ▼                                                      │
+│  Content Guard (output) + Suno prompt + Title önerileri    │
+│       │                                                      │
+│       ▼                                                      │
+│  MCP istemcisine JSON                                       │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+**İki ayrı model neden?** Tek modelin hem stil analizi (kısa JSON çıktı) hem yaratıcı metin üretimi (uzun, yapısal) yapması seq2seq için zor. Görevleri ayırınca ikisi de iyi öğreniyor.
 
 ---
 
 ## Tech Stack
 
-| Katman | Teknoloji |
-|---|---|
-| MCP Sunucu | Python + `mcp` SDK |
-| NLP Modeli | `google/flan-t5-small` (fine-tuned) |
-| Prompt Refinement | Groq API (Llama 3.1) |
-| Veri Toplama | `lyricsgenius` + Genius API |
-| Konteyner | Docker |
+| Katman | Teknoloji | Sebep |
+|---|---|---|
+| MCP Sunucu | Python 3.11 + `mcp` SDK | Resmi protokol uyumu |
+| NLP Modelleri | `google/mt5-small` ×2 (fine-tuned) | Türkçe destekli seq2seq, hafif |
+| Veri Toplama | `lyricsgenius` + Genius API | Türkçe şarkı sözü kaynağı |
+| Veri Augmentation | Ollama (qwen2.5:7b) | Offline sentetik veri üretimi |
+| Eğitim | Kaggle T4 GPU | Sıfır maliyet |
+| Konteyner | Docker (multi-stage) | Bağımlılıksız dağıtım |
 
 ---
 
-## Geliştirme Aşamaları
+## Güvenlik Katmanları
 
-- [x] Proje planı ve mimari
-- [x] `collect_lyrics.py` — Genius API scraper
-- [ ] `clean_lyrics.py` — Temizleme pipeline'ı
-- [ ] `distill_data.py` — Groq ile veri distillation
-- [ ] `train.py` — T5 fine-tuning
-- [ ] MCP sunucu (`server/`)
-- [ ] Docker imajı
-- [ ] Docker Hub yayını
+- **Content Moderation** — Nefret söylemi, cinsel istismar, yasadışı talimat ret edilir. Şarkı sözü bağlamında hafif küfür tolere edilir; %40 üstü küfür dominantsa ret.
+- **Copyright Guard** — Üretilen sözler eğitim setindeki şarkılarla Jaccard benzerliği < 0.35 olmalı. Eşik aşılırsa 3 deneme yapılır.
+- **Prompt Injection Defense** — "Ignore previous instructions" tarzı bypass denemeleri tespit edilir.
+- **Input Validation** — 5-800 kelime arası, boş veya tek-küfür metinler ret.
+
+Detaylar: [`CLAUDE.md`](CLAUDE.md#güvenlik-katmanları).
+
+---
+
+## Limitations
+
+Bu proje hobbi ölçeğinde, sıfır maliyetle eğitildi. Bunları bilerek kullanın:
+
+- **CPU inference: 30-60 saniye** — mT5-small 556M parametre, küçük model ama tokenizer büyük (250K vocab). GPU varsa ~3-5 saniye.
+- **Lyrics kalitesi: orta** — Gramer doğru, yapı temiz, ama anlamsal akıcılık zayıf. "Şair seviyesi" değil; Suno/Udio kendi yorumunu kattığı için yine de kullanılabilir.
+- **Duygu çeşitliliği:** hüzün/özlem/aşk net, öfke/neşe biraz zayıf (augment dataset bias'ı).
+- **Sadece Türkçe v1'de.**
+
+Bu sınırların altında çalışan bir LLM kullanmıyoruz — sadece kendi eğittiğimiz iki küçük model.
+
+---
+
+## Kaynaklardan Kurulum (Geliştirici)
+
+```bash
+git clone https://github.com/sbugrayy/story-to-music.git
+cd story-to-music
+pip install -r server/requirements.txt
+```
+
+### Modelleri Edinme
+
+Eğitilmiş modelleri `model/` altına yerleştirin:
+
+```
+model/
+├── story-to-music-analyzer/   # Model 1 (~300 MB)
+│   ├── model.safetensors
+│   ├── config.json
+│   └── tokenizer.json
+└── story-to-music-lyricist/   # Model 2 (~2.1 GB)
+    ├── model.safetensors
+    ├── config.json
+    └── tokenizer.json
+```
+
+[**HuggingFace'den indir →**](https://huggingface.co/sbugrayy/story-to-music-mcp) *(yakında)*
+
+Veya Kaggle'dan eğitim output'larını alın (`bugrayildirim/lyrics` dataset'ini kullanan notebook'lar `training/` altında).
+
+### Local'de çalıştır
+
+```bash
+python -m server.main
+```
+
+MCP stdio mode'da başlar; bir MCP istemcisinden test edebilirsiniz.
+
+### Hızlı test (modülleri doğrudan çağır)
+
+```bash
+python scripts/test_server.py
+```
+
+---
+
+## Modelleri Sıfırdan Eğitmek
+
+Detaylı veri pipeline ve eğitim adımları için [`CLAUDE.md`](CLAUDE.md)'ye bakın. Özet:
+
+1. **`scripts/collect_lyrics.py`** — Genius API ile Türkçe şarkı sözü topla (~854 şarkı)
+2. **`scripts/clean_lyrics.py`** — Dil tespiti + uzunluk filtresi + normalizasyon
+3. **`scripts/distill_data.py`** — Ollama (qwen2.5:7b) ile metadata + structured_lyrics üret
+4. **`scripts/augment_lyrics.py`** — Ollama ile 10× veri augmentation (4062 örnek)
+5. **`scripts/split_dataset.py`** — Analyzer (854) + Lyricist V2 (4062) datasetlerine böl
+6. **`training/story_to_music_train.ipynb`** — Model 1'i Kaggle T4'te eğit
+7. **`training/story_to_music_lyrics_train.ipynb`** — Model 2'yi Kaggle T4'te eğit
+
+Toplam eğitim süresi: ~3-4 saat T4 GPU.
+
+---
+
+## Docker İmajını Kendin Build Et
+
+```bash
+docker build -t story-to-music-mcp:latest -f docker/Dockerfile .
+```
+
+İmaj boyutu: ~6 GB (iki mT5-small + PyTorch base + bağımlılıklar). Build ~5-10 dakika.
+
+---
+
+## Katkıda Bulunma
+
+Issue açın veya PR gönderin. Özellikle ilgilendiğim yönler:
+
+- mT5-base ile eğitim denemesi (daha iyi kalite, daha büyük model)
+- Türkçe-spesifik base model (Trendyol LLM, KocLM) ile karşılaştırma
+- Quantization (int8) ile imaj boyutunu küçültme
+- Web arayüzü (Next.js + FastAPI)
 
 ---
 
 ## Lisans
 
-MIT
+MIT — kişisel ve ticari kullanım serbest. Eğitim verisi olarak kullanılan şarkı sözlerinin telif hakları orijinal sahiplerine aittir; copyright guard üretilen çıktının orijinallere benzerliğini sınırlar.
+
+---
+
+## Teşekkürler
+
+- [Anthropic MCP](https://modelcontextprotocol.io/) — protokol
+- [Google mT5](https://huggingface.co/google/mt5-small) — base model
+- [Ollama](https://ollama.com/) — offline veri augmentation
+- [Kaggle](https://kaggle.com/) — ücretsiz GPU
+- [Genius](https://genius.com/) — şarkı sözü API'si
+
+Hazırlayan: [@sbugrayy](https://github.com/sbugrayy)
