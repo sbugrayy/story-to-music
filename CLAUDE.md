@@ -455,16 +455,19 @@ story-to-music/
 2. **[x] `collect_lyrics.py`** — 854 şarkı sözü toplandı (Genius API)
 3. **[x] `clean_lyrics.py`** — 855 temiz kayıt
 4. **[x] `distill_data.py`** — Ollama (qwen2.5:7b) ile 854 JSONL kaydı üretildi (`data/training/dataset.jsonl`)
-5. **[x] `split_dataset.py`** — Dataset metadata + lyrics olarak ikiye bölündü
-6. **[ ] Model 1 (Analizci) eğitimi** — `story_to_music_train.ipynb` (mt5-small, Kaggle T4) — henüz çalıştırılmadı
-7. **[ ] Model 2 (Söz Yazarı) eğitimi** — `story_to_music_lyrics_train.ipynb` — eğitim tamamlandı ama çıktı sorunlu (MAX_TARGET_LEN fix bekleniyor)
-8. **[ ] `content_guard.py`** — İçerik moderasyon modülü
-9. **[ ] `copyright_guard.py`** — N-gram benzerlik kontrol modülü
-10. **[ ] `server/main.py`** — MCP sunucu + tool tanımları
-11. **[ ] `groq_client.py`** — Prompt-only mod entegrasyonu + injection savunması
-12. **[ ] Dockerfile** — Konteynerizasyon (~5-6 GB imaj, ham veri dahil edilmez)
-13. **[ ] Docker Hub push + test**
-14. **[ ] README + kurulum kılavuzu**
+5. **[x] `augment_lyrics.py`** — Ollama variation augmentation, 3720 sentetik örnek eklendi
+6. **[x] `split_dataset.py`** — Dataset metadata (854) + lyrics V2 (4062) olarak bölündü
+7. **[x] Model 1 (Analizci) eğitimi** — Kaggle T4, eval_loss 0.54, %100 valid JSON
+8. **[x] Model 2 (Söz Yazarı) eğitimi** — V2 dataset ile, eval_loss 2.82, sampling parametreleri ile dejenerasyon çözüldü
+9. **[x] `content_guard.py`** — Nefret söylemi/cinsel istismar/yasadışı talimat ret + prompt injection defense
+10. **[x] `copyright_guard.py`** — Jaccard benzerlik kontrolü (eşik 0.35), referans dataset 4062 örnek
+11. **[x] `server/main.py` + `tools.py` + `inference.py`** — MCP sunucu, 3 tool (`generate_music_prompt`, `analyze_emotion`, `generate_lyrics_only`)
+12. **[ ] `groq_client.py`** — Prompt refinement (opsiyonel, `prompt_only` mode için; deterministik fallback ile geçici çözüldü)
+13. **[x] Dockerfile** — Multi-stage build, 5.92 GB imaj
+14. **[x] Docker Hub push** — `sbugrayy/story-to-music-mcp:latest` + `:v1.0`
+15. **[x] HuggingFace model yayını** — `sbugrayy/story-to-music-analyzer` + `sbugrayy/story-to-music-lyricist`
+16. **[x] README + kurulum kılavuzu** — Quick start (Claude Code/Cursor/Desktop), 3 tool dokümantasyonu, mimari
+17. **[x] End-to-end test** — Claude Code ile gerçek tool call doğrulandı, JSON yanıt + Türkçe lyrics üretildi
 
 ---
 

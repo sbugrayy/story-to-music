@@ -8,6 +8,10 @@
 
 Bir hikâye, konsept veya taslak veriyorsunuz — sistem duygu haritasını analiz ediyor, müzik parametrelerini çıkarıyor ve **[Verse]/[Chorus]/[Bridge]/[Outro]** etiketli Türkçe şarkı sözleri üretiyor. Hepsi local'de, harici API olmadan, tek `docker run` ile.
 
+<p align="center">
+  <video src="docs/demo.mp4" controls autoplay loop muted playsinline width="80%"></video>
+</p>
+
 ---
 
 ## Örnek Çıktı
@@ -33,6 +37,47 @@ Bir hikâye, konsept veya taslak veriyorsunuz — sistem duygu haritasını anal
 ```
 
 Bu çıktıyı doğrudan Suno/Udio'ya yapıştırıp şarkı üretebilirsiniz.
+
+---
+
+## Canlı Test (Claude Code + MCP)
+
+Aşağıdaki çıktı **gerçek bir MCP tool call** sonucudur — Docker Hub'daki imajdan
+çalışan container, sıfır harici API:
+
+**Girdi:**
+> "story-to-music tool'unu kullanarak şu metni Suno için müzik prompt'una çevir: *Bir zamanlar büyük bir aşk yaşamıştım. Sonra o aşk gitti. Her gece pencereden bakıyorum, yağmur onu hatırlatıyor.*"
+
+**Çıktı (~30 saniye, ilk container start hariç):**
+
+```
+Style Prompt:
+"Dramatic and melancholic vocals with a touch of sorrow. BPM: 80, Key: A minor."
+
+Şarkı Sözü:
+[Verse 1]
+Gölgenin altında uzun bir yol, sıcak bir aşk
+Gözlerimde karanlık, her an için bir yeryüzü
+Kalabalık gecelerin sonunda
+Seninle birlikte kaybolmuş gibi, seninle oynadığım ışıklar
+
+[Chorus]
+Ne var ki ne yapacağımı bilmiyorum
+Ama her şeyi kaybetmiş mi?
+
+[Bridge]
+Gökyüzünde rüzgarla dolu yolda
+Sokaktan kaçmak isteyen her şey
+Daha da bana sarılmıyor
+
+[Outro]
+Kafede dururken ne de bu anılarım
+Gözlerimin derinliklerinde yine gitti
+
+Parametreler: aşk / 6 enerji / 80 BPM / A minor / ney+saz / dramatik vokal
+Başlık Önerileri: "Seninle", "Bir Bakış", "Gölgenin Altında"
+Telif benzerlik: 0.169 (eşik 0.35 — güvenli)
+```
 
 ---
 
@@ -118,33 +163,7 @@ Stil parametreleri verildiğinde sadece Türkçe şarkı sözü üretir. Metin a
 
 ## Mimari
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Türkçe Metin                                                │
-│       │                                                      │
-│       ▼                                                      │
-│  Content Guard (input)  ──┐                                 │
-│       │                    │                                 │
-│       ▼                    ▼                                 │
-│  Model 1: Analyzer    [Politika ihlali → ret]              │
-│  (fine-tuned mT5)                                           │
-│       │                                                      │
-│       │ {emotion, energy, bpm, key, instruments, ...}      │
-│       ▼                                                      │
-│  Model 2: Lyricist                                          │
-│  (fine-tuned mT5)                                           │
-│       │                                                      │
-│       │ [Verse]/[Chorus]/[Bridge]/[Outro] Türkçe sözler    │
-│       ▼                                                      │
-│  Copyright Guard ──► Jaccard > 0.35 ise tekrar dene (max 3) │
-│       │                                                      │
-│       ▼                                                      │
-│  Content Guard (output) + Suno prompt + Title önerileri    │
-│       │                                                      │
-│       ▼                                                      │
-│  MCP istemcisine JSON                                       │
-└─────────────────────────────────────────────────────────────┘
-```
+![Story-to-Music Mimarisi](docs/architecture.png)
 
 **İki ayrı model neden?** Tek modelin hem stil analizi (kısa JSON çıktı) hem yaratıcı metin üretimi (uzun, yapısal) yapması seq2seq için zor. Görevleri ayırınca ikisi de iyi öğreniyor.
 
@@ -176,7 +195,7 @@ Detaylar: [`CLAUDE.md`](CLAUDE.md#güvenlik-katmanları).
 
 ## Limitations
 
-Bu proje hobbi ölçeğinde, sıfır maliyetle eğitildi. Bunları bilerek kullanın:
+Bu proje hobi ölçeğinde, sıfır maliyetle eğitildi. Bunları bilerek kullanın:
 
 - **CPU inference: 30-60 saniye** — mT5-small 556M parametre, küçük model ama tokenizer büyük (250K vocab). GPU varsa ~3-5 saniye.
 - **Lyrics kalitesi: orta** — Gramer doğru, yapı temiz, ama anlamsal akıcılık zayıf. "Şair seviyesi" değil; Suno/Udio kendi yorumunu kattığı için yine de kullanılabilir.
@@ -211,9 +230,12 @@ model/
     └── tokenizer.json
 ```
 
-[**HuggingFace'den indir →**](https://huggingface.co/sbugrayy/story-to-music-mcp) *(yakında)*
+**HuggingFace'den indir:**
+- Analyzer: [bugrayildirim/story-to-music-analyzer](https://huggingface.co/bugrayildirim/story-to-music-analyzer)
+- Lyricist: [bugrayildirim/story-to-music-lyricist](https://huggingface.co/bugrayildirim/story-to-music-lyricist)
 
 Veya Kaggle'dan eğitim output'larını alın (`bugrayildirim/lyrics` dataset'ini kullanan notebook'lar `training/` altında).
+NOT: Kaggle üzerinden indirmenizi pek tavsiye etmem. Çünkü çok yavaş hızlarda indirebiliyor.
 
 ### Local'de çalıştır
 
@@ -240,8 +262,10 @@ Detaylı veri pipeline ve eğitim adımları için [`CLAUDE.md`](CLAUDE.md)'ye b
 3. **`scripts/distill_data.py`** — Ollama (qwen2.5:7b) ile metadata + structured_lyrics üret
 4. **`scripts/augment_lyrics.py`** — Ollama ile 10× veri augmentation (4062 örnek)
 5. **`scripts/split_dataset.py`** — Analyzer (854) + Lyricist V2 (4062) datasetlerine böl
-6. **`training/story_to_music_train.ipynb`** — Model 1'i Kaggle T4'te eğit
-7. **`training/story_to_music_lyrics_train.ipynb`** — Model 2'yi Kaggle T4'te eğit
+6. **Model 1 (Analyzer):** [Kaggle notebook'u aç →](https://www.kaggle.com/code/bugrayildirim/story-to-music) — T4 GPU, ~30 dk
+7. **Model 2 (Lyricist):** [Kaggle notebook'u aç →](https://www.kaggle.com/code/bugrayildirim/story-to-music-lyrics) — T4 GPU, ~2 saat
+
+Kaggle'da "Copy & Edit" → sağ panelden `bugrayildirim/lyrics` dataset'ini ekle → "Run All". Lokal kopyalar `training/` altında.
 
 Toplam eğitim süresi: ~3-4 saat T4 GPU.
 

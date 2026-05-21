@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "story-to-music": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "sbugrayy/story-to-music-mcp:latest"]
+    }
+  }
+}
