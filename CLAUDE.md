@@ -468,6 +468,7 @@ story-to-music/
 15. **[x] HuggingFace model yayını** — `sbugrayy/story-to-music-analyzer` + `sbugrayy/story-to-music-lyricist`
 16. **[x] README + kurulum kılavuzu** — Quick start (Claude Code/Cursor/Desktop), 3 tool dokümantasyonu, mimari
 17. **[x] End-to-end test** — Claude Code ile gerçek tool call doğrulandı, JSON yanıt + Türkçe lyrics üretildi
+18. **[x] HTTP/SSE MCP transport** — HF Space remote endpoint (Gradio UI + MCP tek Starlette app'te mount, paylaşımlı model cache), zero-install seçeneği Claude Desktop/Code Pro kullanıcıları için
 
 ---
 

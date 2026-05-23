@@ -117,6 +117,23 @@ Claude Desktop'u yeniden başlatın. Artık Claude'a "*bu hikâye için Suno pro
 }
 ```
 
+### Remote (zero-install, Claude Desktop / Code Pro)
+
+Docker bile kurmak istemiyorsan, HF Space üzerindeki remote MCP endpoint'i kullan:
+
+```json
+{
+  "mcpServers": {
+    "story-to-music": {
+      "url": "https://bugrayildirim-story-to-music.hf.space/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+İlk istek 60-180 saniye (HF Space cold start + model yükleme). Sonraki istekler ~30-60 saniye. Free tier 48 saat inaktiviteden sonra uyur, ilk istekte uyanır.
+
 ### İlk çalıştırma
 
 İlk istek sırasında Docker imajı (~6 GB) indirilir ve modeller yüklenir. Sonraki istekler hızlıdır.
