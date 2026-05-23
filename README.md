@@ -2,11 +2,14 @@
 
 > Türkçe metinleri **Suno** ve **Udio** için hazır müzik promptlarına ve yapılandırılmış şarkı sözlerine çeviren, kendi fine-tuned modelleriyle çalışan **MCP (Model Context Protocol)** sunucusu.
 
+[![Open in Spaces](https://img.shields.io/badge/🤗%20Demo-Spaces-blue)](https://huggingface.co/spaces/bugrayildirim/story-to-music)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker)](https://hub.docker.com/r/sbugrayy/story-to-music-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Model](https://img.shields.io/badge/model-mT5--small-orange)](https://huggingface.co/google/mt5-small)
 
 Bir hikâye, konsept veya taslak veriyorsunuz — sistem duygu haritasını analiz ediyor, müzik parametrelerini çıkarıyor ve **[Verse]/[Chorus]/[Bridge]/[Outro]** etiketli Türkçe şarkı sözleri üretiyor. Hepsi local'de, harici API olmadan, tek `docker run` ile.
+
+👉 **[🤗 Hemen dene (HuggingFace Spaces)](https://huggingface.co/spaces/bugrayildirim/story-to-music)** — kurulum yok, tarayıcıdan çalıştır.
 
 <p align="center">
   <video src="docs/demo.mp4" controls autoplay loop muted playsinline width="80%"></video>
